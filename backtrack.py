@@ -26,7 +26,11 @@ def simple_solve(game):
     global Game
     global value_of_cell
     global order_domain_values
+    global constraint_on_cell
     Game = game
+    value_of_cell = []
+    constraint_on_cell = []
+    order_domain_values = []
 
     for i in range(9):
         row = []
