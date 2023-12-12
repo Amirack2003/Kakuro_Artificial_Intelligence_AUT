@@ -266,7 +266,7 @@ class KakuroUI(Frame):
         self.game.data_filled = []
         self.canvas.delete("victory")
         self.canvas.delete("circ")
-        self.game.data_filled = mcv_solve(self.game)
+        self.game.data_filled = simple_solve(self.game)
         self.draw_puzzle()
 
     def load_another(self):
