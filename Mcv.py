@@ -18,27 +18,33 @@ def monitor(func):
 Game = object
 value_of_cell = []
 constraint_on_cell = []
+order_domain_values = []
 
 
-@monitor
-def simple_solve(game):
-    # print(game.data_fills)
+# @monitor
+def mcv_solve(game):
     global Game
     global value_of_cell
+    global order_domain_values
     Game = game
+
     for i in range(9):
         row = []
         constraint = []
+        values = []
         for j in range(9):
             if [i, j] not in game.data_fills:
                 row.append((0, 0))
                 constraint.append([(-1, -1), (-1, -1)])
+                values.append([1, 2, 3, 4, 5, 6, 7, 8, 9])
             else:
                 row.append(0)
                 constraint.append([(-1, -1), (-1, -1)])
+                values.append([1, 2, 3, 4, 5, 6, 7, 8, 9])
         constraint_on_cell.append(constraint)
         value_of_cell.append(row)
-    # print("value of cell :", value_of_cell)
+        order_domain_values.append(values)
+
     for cell in game.data_totals:
         i, j = cell[2], cell[3]
         if isinstance(value_of_cell[i][j], tuple):
@@ -67,29 +73,36 @@ def simple_solve(game):
 def back_track(current_cell_index):
     global Game
     global value_of_cell
-    # print(len(Game.data_filled))
-    if current_cell_index == len(Game.data_fills):
+    global order_domain_values
+    print(len(Game.data_filled), ' data filed size')
+    # print(Game.data_filled)
+    if current_cell_index == -1:
         if Game.check_win():
             print(' ACCEPTED ')
             return True
         else:
+            # print(len(Game.data_filled), len(Game.data_fills))
             # print(' FAILED ')
             # print_mp()
             return False
     current_cell = Game.data_fills[current_cell_index]
-    for i in range(9):
+    for i in order_domain_values[current_cell[0]][current_cell[1]]:
         # print(" ********************* ")
-        Game.data_filled += [[current_cell[0], current_cell[1], i + 1]]
-        value_of_cell[current_cell[0]][current_cell[1]] = i + 1
+        Game.data_filled.append([current_cell[0], current_cell[1], i])
+        value_of_cell[current_cell[0]][current_cell[1]] = i
         if update_filled_sum_value(current_cell[0], current_cell[1]):
             # print(" ****** ++++++++++++++++++++++++++++++++++")
-            if back_track(current_cell_index + 1):
+            update_order_domain_values(current_cell[0], current_cell[1], i, True)
+            if back_track(get_next_unassigned_variable()):
                 return True
-            Game.data_filled.remove([current_cell[0], current_cell[1], i + 1])
+            # Game.data_filled.remove([current_cell[0], current_cell[1], i])
+            Game.data_filled.pop()
             value_of_cell[current_cell[0]][current_cell[1]] = 0
+            update_order_domain_values(current_cell[0], current_cell[1], i, False)
         else:
             # print(" REMOVED BY CONSIS", i)
-            Game.data_filled.remove([current_cell[0], current_cell[1], i + 1])
+            # Game.data_filled.remove([current_cell[0], current_cell[1], i])
+            Game.data_filled.pop()
             value_of_cell[current_cell[0]][current_cell[1]] = 0
     return False
 
@@ -177,8 +190,60 @@ def update_filled_sum_value(i, j):
     xj, yj = constraint_on_cell[i][j][1]
     sum_min_row, sum_max_row = row_sum(xi, yi)
     sum_min_column, sum_max_column = column_sum(xj, yj)
+    # print(sum_max_row, consistent_values[(xi, yi)][0], sum_min_row)
+    # print(sum_max_column, consistent_values[(xj, yj)][1], sum_min_column)
+    # print(' */* ')
+    # print(sum_max_row >= consistent_values[(xi, yi)][0] >= sum_min_row and \
+    #       sum_max_column >= consistent_values[(xj, yj)][1] >= sum_min_column
+    #       )
     return sum_max_row >= value_of_cell[xi][yi][0] >= sum_min_row and \
            sum_max_column >= value_of_cell[xj][yj][1] >= sum_min_column
+
+
+def update_order_domain_values(i, j, value, remove):
+    global order_domain_values
+    global Game
+    xi, yi = constraint_on_cell[i][j][0]
+    xj, yj = constraint_on_cell[i][j][1]
+    if remove:
+        yi = yi + 1
+        while yi < 9 and not isinstance(value_of_cell[xi][yi], tuple):
+            values = order_domain_values[xi][yi]
+            if value in values:
+                values.remove(value)
+            order_domain_values[xi][yi] = values
+            # print("Updating order domain value of :", (yi, yi), " ::: ", order_domain_values[(yi, yi)])
+            yi = yi + 1
+
+        xj = xj + 1
+        while xj < 9 and not isinstance(value_of_cell[xj][yj], tuple):
+            values = order_domain_values[xj][yj]
+            if value in values:
+                values.remove(value)
+            order_domain_values[xj][yj] = values
+            # print("Updating order domain value of :", (xj, yj), " ::: ", order_domain_values[(xj, yj)])
+            xj = xj + 1
+
+    else:
+        yi = yi + 1
+        while yi < 9 and not isinstance(value_of_cell[xi][yi], tuple):
+            values = order_domain_values[xi][yi]
+            if value not in values:
+                values.append(value)
+            order_domain_values[xi][yi] = values
+            # print("Updating order domain value of :", (yi, yi), " ::: ", order_domain_values[(yi, yi)])
+            yi = yi + 1
+
+        xj = xj + 1
+        while xj < 9 and not isinstance(value_of_cell[xj][yj], tuple):
+            values = order_domain_values[xj][yj]
+            if value not in values:
+                values.append(value)
+            order_domain_values[xj][yj] = values
+            # print("Updating order domain value of :", (xj, yj), " ::: ", order_domain_values[(xj, yj)])
+            xj = xj + 1
+
+    return order_domain_values
 
 
 def print_mp():
@@ -188,3 +253,21 @@ def print_mp():
             print(value_of_cell[i][j], end='\t')
         print()
     print(" ***************** ")
+
+
+def get_next_unassigned_variable():
+    global Game
+    global value_of_cell
+    constraint = 100
+    index = -1
+    for i in range(len(Game.data_fills)):
+        pos = Game.data_fills[i]
+        # print(order_domain_values[pos[0]][pos[1]])
+        if value_of_cell[pos[0]][pos[1]] == 0:
+            if constraint >= len(order_domain_values[pos[0]][pos[1]]):
+                constraint = len(order_domain_values[pos[0]][pos[1]])
+                index = i
+
+    # print(index, constraint)
+
+    return index
